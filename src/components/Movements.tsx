@@ -1,72 +1,169 @@
-import { useState } from 'react';
-import { Plus, Search, Filter, ArrowDown, ArrowUp, RefreshCw, Edit2, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { movements as initialMovements, products, warehouses } from '../data/mockData';
-import { Movement, MovementType, MovementStatus, User } from '../types';
+import { useState } from "react";
+import {
+  Plus,
+  Search,
+  Filter,
+  ArrowDown,
+  ArrowUp,
+  RefreshCw,
+  Edit2,
+  CheckCircle,
+  XCircle,
+  Clock,
+} from "lucide-react";
+import {
+  movements as initialMovements,
+  products,
+  warehouses,
+} from "../data/mockData";
+import {
+  Movement,
+  MovementType,
+  MovementStatus,
+  User,
+  Notification,
+} from "../types";
+import { createNotification } from "../services/notifications";
 
 interface MovementsProps {
   onNavigate: (page: string, data?: any) => void;
   currentUser: User;
+  setNotifications?: (
+    n: Notification[] | ((prev: Notification[]) => Notification[])
+  ) => void;
 }
 
-export function Movements({ onNavigate, currentUser }: MovementsProps) {
-  const [movements] = useState<Movement[]>(initialMovements);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<MovementType | 'all'>('all');
-  const [filterStatus, setFilterStatus] = useState<MovementStatus | 'all'>('all');
-  const [filterWarehouse, setFilterWarehouse] = useState('all');
+export function Movements({
+  onNavigate,
+  currentUser,
+  setNotifications,
+}: MovementsProps) {
+  const [movements, setMovements] = useState<Movement[]>(initialMovements);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<MovementType | "all">("all");
+  const [filterStatus, setFilterStatus] = useState<MovementStatus | "all">(
+    "all"
+  );
+  const [filterWarehouse, setFilterWarehouse] = useState("all");
 
-  const filteredMovements = movements.filter(movement => {
-    const matchesSearch = 
+  const filteredMovements = movements.filter((movement) => {
+    const matchesSearch =
       movement.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       movement.productCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
       movement.reason.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || movement.type === filterType;
-    const matchesStatus = filterStatus === 'all' || movement.status === filterStatus;
-    const matchesWarehouse = filterWarehouse === 'all' || movement.warehouseId === filterWarehouse;
-    
+    const matchesType = filterType === "all" || movement.type === filterType;
+    const matchesStatus =
+      filterStatus === "all" || movement.status === filterStatus;
+    const matchesWarehouse =
+      filterWarehouse === "all" || movement.warehouseId === filterWarehouse;
+
     return matchesSearch && matchesType && matchesStatus && matchesWarehouse;
   });
 
   const getTypeIcon = (type: MovementType) => {
     switch (type) {
-      case 'entrada': return <ArrowDown className="w-4 h-4" />;
-      case 'salida': return <ArrowUp className="w-4 h-4" />;
-      case 'reintegro': return <RefreshCw className="w-4 h-4" />;
-      case 'ajuste': return <Edit2 className="w-4 h-4" />;
-      default: return <ArrowDown className="w-4 h-4" />;
+      case "entrada":
+        return <ArrowDown className="w-4 h-4" />;
+      case "salida":
+        return <ArrowUp className="w-4 h-4" />;
+      case "reintegro":
+        return <RefreshCw className="w-4 h-4" />;
+      case "ajuste":
+        return <Edit2 className="w-4 h-4" />;
+      default:
+        return <ArrowDown className="w-4 h-4" />;
     }
   };
 
   const getTypeColor = (type: MovementType) => {
     switch (type) {
-      case 'entrada': return 'bg-green-100 text-green-800';
-      case 'salida': return 'bg-red-100 text-red-800';
-      case 'reintegro': return 'bg-blue-100 text-blue-800';
-      case 'ajuste': return 'bg-purple-100 text-purple-800';
-      case 'transferencia': return 'bg-orange-100 text-orange-800';
+      case "entrada":
+        return "bg-green-100 text-green-800";
+      case "salida":
+        return "bg-red-100 text-red-800";
+      case "reintegro":
+        return "bg-blue-100 text-blue-800";
+      case "ajuste":
+        return "bg-purple-100 text-purple-800";
+      case "transferencia":
+        return "bg-orange-100 text-orange-800";
     }
   };
 
   const getStatusIcon = (status: MovementStatus) => {
     switch (status) {
-      case 'aprobado': return <CheckCircle className="w-4 h-4" />;
-      case 'rechazado': return <XCircle className="w-4 h-4" />;
-      case 'pendiente': return <Clock className="w-4 h-4" />;
+      case "aprobado":
+        return <CheckCircle className="w-4 h-4" />;
+      case "rechazado":
+        return <XCircle className="w-4 h-4" />;
+      case "pendiente":
+        return <Clock className="w-4 h-4" />;
     }
   };
 
   const getStatusColor = (status: MovementStatus) => {
     switch (status) {
-      case 'aprobado': return 'bg-green-100 text-green-800';
-      case 'rechazado': return 'bg-red-100 text-red-800';
-      case 'pendiente': return 'bg-yellow-100 text-yellow-800';
+      case "aprobado":
+        return "bg-green-100 text-green-800";
+      case "rechazado":
+        return "bg-red-100 text-red-800";
+      case "pendiente":
+        return "bg-yellow-100 text-yellow-800";
     }
   };
 
   // Estadísticas rápidas
-  const totalEntradas = movements.filter(m => m.type === 'entrada').length;
-  const totalSalidas = movements.filter(m => m.type === 'salida').length;
-  const totalPendientes = movements.filter(m => m.status === 'pendiente').length;
+  const totalEntradas = movements.filter((m) => m.type === "entrada").length;
+  const totalSalidas = movements.filter((m) => m.type === "salida").length;
+  const totalPendientes = movements.filter(
+    (m) => m.status === "pendiente"
+  ).length;
+
+  // Handlers for approving/rejecting movements
+  const approveMovement = (id: string) => {
+    const mv = movements.find((m) => m.id === id);
+    if (!mv) return;
+    setMovements((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, status: "aprobado" } : m))
+    );
+
+    const notif = createNotification({
+      type: "entrada_salida",
+      title: "Movimiento aprobado",
+      message: `Movimiento ${mv.id} para ${mv.productName} fue aprobado.`,
+      warehouseId: mv.warehouseId,
+      warehouseName: mv.warehouseName,
+      read: false,
+      relatedId: mv.id,
+      severity: "success",
+    });
+    if (setNotifications)
+      setNotifications((prev: Notification[]) => [notif, ...prev]);
+  };
+
+  const rejectMovement = (id: string) => {
+    const mv = movements.find((m) => m.id === id);
+    if (!mv) return;
+    const reason = prompt("Motivo del rechazo:") || "Sin motivo especificado";
+    setMovements((prev) =>
+      prev.map((m) =>
+        m.id === id ? { ...m, status: "rechazado", observations: reason } : m
+      )
+    );
+
+    const notif = createNotification({
+      type: "rechazo",
+      title: "Movimiento rechazado",
+      message: `Movimiento ${mv.id} para ${mv.productName} fue rechazado. Motivo: ${reason}`,
+      warehouseId: mv.warehouseId,
+      warehouseName: mv.warehouseName,
+      read: false,
+      relatedId: mv.id,
+      severity: "error",
+    });
+    if (setNotifications)
+      setNotifications((prev: Notification[]) => [notif, ...prev]);
+  };
 
   return (
     <div className="space-y-6">
@@ -114,7 +211,9 @@ export function Movements({ onNavigate, currentUser }: MovementsProps) {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-gray-600">Pendientes</div>
-              <div className="text-2xl text-gray-900 mt-1">{totalPendientes}</div>
+              <div className="text-2xl text-gray-900 mt-1">
+                {totalPendientes}
+              </div>
             </div>
             <div className="p-3 bg-yellow-100 rounded-lg">
               <Clock className="w-6 h-6 text-yellow-600" />
@@ -143,7 +242,9 @@ export function Movements({ onNavigate, currentUser }: MovementsProps) {
           {/* Filtro por tipo */}
           <select
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as MovementType | 'all')}
+            onChange={(e) =>
+              setFilterType(e.target.value as MovementType | "all")
+            }
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Todos los tipos</option>
@@ -157,7 +258,9 @@ export function Movements({ onNavigate, currentUser }: MovementsProps) {
           {/* Filtro por estado */}
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as MovementStatus | 'all')}
+            onChange={(e) =>
+              setFilterStatus(e.target.value as MovementStatus | "all")
+            }
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Todos los estados</option>
@@ -167,15 +270,17 @@ export function Movements({ onNavigate, currentUser }: MovementsProps) {
           </select>
 
           {/* Filtro por almacén */}
-          {currentUser.role === 'super_admin' && (
+          {currentUser.role === "super_admin" && (
             <select
               value={filterWarehouse}
               onChange={(e) => setFilterWarehouse(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Todos los almacenes</option>
-              {warehouses.map(w => (
-                <option key={w.id} value={w.id}>{w.name}</option>
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
               ))}
             </select>
           )}
@@ -188,51 +293,93 @@ export function Movements({ onNavigate, currentUser }: MovementsProps) {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Fecha</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Tipo</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Producto</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Cantidad</th>
-                {currentUser.role === 'super_admin' && (
-                  <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Almacén</th>
+                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  Fecha
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  Tipo
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  Producto
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  Cantidad
+                </th>
+                {currentUser.role === "super_admin" && (
+                  <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+                    Almacén
+                  </th>
                 )}
-                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Motivo</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Responsable</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Estado</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Acciones</th>
+                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  Motivo
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  Responsable
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  Estado
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredMovements.map(movement => {
-                const warehouse = warehouses.find(w => w.id === movement.warehouseId);
-                
+              {filteredMovements.map((movement) => {
+                const warehouse = warehouses.find(
+                  (w) => w.id === movement.warehouseId
+                );
+
                 return (
                   <tr key={movement.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div>{new Date(movement.date).toLocaleDateString()}</div>
                       <div className="text-xs text-gray-500">
-                        {new Date(movement.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(movement.date).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full ${getTypeColor(movement.type)}`}>
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full ${getTypeColor(
+                          movement.type
+                        )}`}
+                      >
                         {getTypeIcon(movement.type)}
-                        {movement.type.charAt(0).toUpperCase() + movement.type.slice(1)}
+                        {movement.type.charAt(0).toUpperCase() +
+                          movement.type.slice(1)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{movement.productName}</div>
-                      <div className="text-xs text-gray-500">{movement.productCode}</div>
+                      <div className="text-sm text-gray-900">
+                        {movement.productName}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {movement.productCode}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm ${movement.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
-                        {movement.type === 'entrada' ? '+' : '-'}{Math.abs(movement.quantity)}
+                      <span
+                        className={`text-sm ${
+                          movement.type === "entrada"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {movement.type === "entrada" ? "+" : "-"}
+                        {Math.abs(movement.quantity)}
                       </span>
                     </td>
-                    {currentUser.role === 'super_admin' && (
+                    {currentUser.role === "super_admin" && (
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div 
+                        <div
                           className="inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs"
-                          style={{ backgroundColor: `${warehouse?.color}20`, color: warehouse?.color }}
+                          style={{
+                            backgroundColor: `${warehouse?.color}20`,
+                            color: warehouse?.color,
+                          }}
                         >
                           {movement.warehouseName}
                         </div>
@@ -245,23 +392,37 @@ export function Movements({ onNavigate, currentUser }: MovementsProps) {
                       {movement.responsibleUser}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full ${getStatusColor(movement.status)}`}>
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full ${getStatusColor(
+                          movement.status
+                        )}`}
+                      >
                         {getStatusIcon(movement.status)}
-                        {movement.status.charAt(0).toUpperCase() + movement.status.slice(1)}
+                        {movement.status.charAt(0).toUpperCase() +
+                          movement.status.slice(1)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {movement.status === 'pendiente' && currentUser.role === 'super_admin' && (
-                        <div className="flex items-center gap-2">
-                          <button className="p-1 text-green-600 hover:bg-green-50 rounded" title="Aprobar">
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                          <button className="p-1 text-red-600 hover:bg-red-50 rounded" title="Rechazar">
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                      {movement.status !== 'pendiente' && (
+                      {movement.status === "pendiente" &&
+                        currentUser.role === "super_admin" && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => approveMovement(movement.id)}
+                              className="p-1 text-green-600 hover:bg-green-50 rounded"
+                              title="Aprobar"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => rejectMovement(movement.id)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                              title="Rechazar"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      {movement.status !== "pendiente" && (
                         <span className="text-xs text-gray-400">-</span>
                       )}
                     </td>
@@ -275,7 +436,9 @@ export function Movements({ onNavigate, currentUser }: MovementsProps) {
           <div className="text-center py-12 text-gray-500">
             <RefreshCw className="w-12 h-12 mx-auto mb-3 text-gray-300" />
             <div>No se encontraron movimientos</div>
-            <div className="text-sm mt-1">Intenta ajustar los filtros de búsqueda</div>
+            <div className="text-sm mt-1">
+              Intenta ajustar los filtros de búsqueda
+            </div>
           </div>
         )}
       </div>

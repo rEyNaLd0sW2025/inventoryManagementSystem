@@ -9,7 +9,6 @@ export const createNotification = (
   const notification: Notification = {
     id,
     date,
-    read: false,
     ...payload,
   } as Notification;
 

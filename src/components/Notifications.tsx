@@ -1,67 +1,91 @@
-import { useState } from 'react';
-import { Bell, CheckCircle, AlertTriangle, Info, XCircle, Trash2, Check } from 'lucide-react';
-import { notifications as initialNotifications } from '../data/mockData';
-import { Notification, NotificationType } from '../types';
+import { useState } from "react";
+import {
+  Bell,
+  CheckCircle,
+  AlertTriangle,
+  Info,
+  XCircle,
+  Trash2,
+  Check,
+} from "lucide-react";
+import { Notification, NotificationType } from "../types";
 
 interface NotificationsProps {
   onNavigate: (page: string, data?: any) => void;
+  notifications: Notification[];
+  setNotifications: (
+    n: Notification[] | ((prev: Notification[]) => Notification[])
+  ) => void;
 }
 
-export function Notifications({ onNavigate }: NotificationsProps) {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+export function Notifications({
+  onNavigate,
+  notifications,
+  setNotifications,
+}: NotificationsProps) {
+  const [filter, setFilter] = useState<"all" | "unread">("all");
 
-  const filteredNotifications = notifications.filter(n => 
-    filter === 'all' || !n.read
+  const filteredNotifications = notifications.filter(
+    (n) => filter === "all" || !n.read
   );
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const getNotificationIcon = (type: NotificationType, severity: string) => {
-    if (severity === 'success') return <CheckCircle className="w-5 h-5 text-green-600" />;
-    if (severity === 'error') return <XCircle className="w-5 h-5 text-red-600" />;
-    if (severity === 'warning') return <AlertTriangle className="w-5 h-5 text-orange-600" />;
+    if (severity === "success")
+      return <CheckCircle className="w-5 h-5 text-green-600" />;
+    if (severity === "error")
+      return <XCircle className="w-5 h-5 text-red-600" />;
+    if (severity === "warning")
+      return <AlertTriangle className="w-5 h-5 text-orange-600" />;
     return <Info className="w-5 h-5 text-blue-600" />;
   };
 
   const getNotificationColor = (severity: string) => {
     switch (severity) {
-      case 'success': return 'bg-green-50 border-green-200';
-      case 'error': return 'bg-red-50 border-red-200';
-      case 'warning': return 'bg-orange-50 border-orange-200';
-      default: return 'bg-blue-50 border-blue-200';
+      case "success":
+        return "bg-green-50 border-green-200";
+      case "error":
+        return "bg-red-50 border-red-200";
+      case "warning":
+        return "bg-orange-50 border-orange-200";
+      default:
+        return "bg-blue-50 border-blue-200";
     }
   };
 
   const markAsRead = (id: string) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
   };
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   const deleteNotification = (id: string) => {
-    setNotifications(notifications.filter(n => n.id !== id));
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
-    
+
     // Navegar según el tipo de notificación
     if (notification.relatedId) {
-      if (notification.type === 'solicitud_compra') {
-        onNavigate('purchases');
-      } else if (notification.type === 'transferencia') {
-        onNavigate('transfers');
-      } else if (notification.type === 'stock_minimo' || notification.type === 'stock_cero') {
-        onNavigate('inventory');
-      } else if (notification.type === 'nuevo_producto') {
-        onNavigate('inventory');
+      if (notification.type === "solicitud_compra") {
+        onNavigate("purchases");
+      } else if (notification.type === "transferencia") {
+        onNavigate("transfers");
+      } else if (
+        notification.type === "stock_minimo" ||
+        notification.type === "stock_cero"
+      ) {
+        onNavigate("inventory");
+      } else if (notification.type === "nuevo_producto") {
+        onNavigate("inventory");
       } else {
-        onNavigate('movements');
+        onNavigate("movements");
       }
     }
   };
@@ -73,11 +97,14 @@ export function Notifications({ onNavigate }: NotificationsProps) {
         <div>
           <h2 className="text-gray-900">Notificaciones</h2>
           <p className="text-gray-600 mt-1">
-            {unreadCount} {unreadCount === 1 ? 'notificación no leída' : 'notificaciones no leídas'}
+            {unreadCount}{" "}
+            {unreadCount === 1
+              ? "notificación no leída"
+              : "notificaciones no leídas"}
           </p>
         </div>
         {unreadCount > 0 && (
-          <button 
+          <button
             onClick={markAllAsRead}
             className="flex items-center gap-2 px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
           >
@@ -91,21 +118,21 @@ export function Notifications({ onNavigate }: NotificationsProps) {
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="flex gap-2">
           <button
-            onClick={() => setFilter('all')}
+            onClick={() => setFilter("all")}
             className={`px-4 py-2 rounded-lg transition-colors ${
-              filter === 'all' 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              filter === "all"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
             Todas ({notifications.length})
           </button>
           <button
-            onClick={() => setFilter('unread')}
+            onClick={() => setFilter("unread")}
             className={`px-4 py-2 rounded-lg transition-colors ${
-              filter === 'unread' 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              filter === "unread"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
             No leídas ({unreadCount})
@@ -116,24 +143,27 @@ export function Notifications({ onNavigate }: NotificationsProps) {
       {/* Lista de notificaciones */}
       <div className="space-y-3">
         {filteredNotifications.length > 0 ? (
-          filteredNotifications.map(notification => (
-            <div 
+          filteredNotifications.map((notification) => (
+            <div
               key={notification.id}
               className={`bg-white rounded-lg border-2 transition-all ${
-                notification.read 
-                  ? 'border-gray-200 opacity-75' 
+                notification.read
+                  ? "border-gray-200 opacity-75"
                   : `${getNotificationColor(notification.severity)} border-2`
               } hover:shadow-md cursor-pointer`}
             >
-              <div 
+              <div
                 className="p-4"
                 onClick={() => handleNotificationClick(notification)}
               >
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 mt-1">
-                    {getNotificationIcon(notification.type, notification.severity)}
+                    {getNotificationIcon(
+                      notification.type,
+                      notification.severity
+                    )}
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3 mb-1">
                       <h4 className="text-gray-900">{notification.title}</h4>
@@ -141,12 +171,21 @@ export function Notifications({ onNavigate }: NotificationsProps) {
                         <span className="inline-block w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1"></span>
                       )}
                     </div>
-                    
-                    <p className="text-sm text-gray-700 mb-2">{notification.message}</p>
-                    
+
+                    <p className="text-sm text-gray-700 mb-2">
+                      {notification.message}
+                    </p>
+
                     <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <span>{new Date(notification.date).toLocaleDateString()}</span>
-                      <span>{new Date(notification.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>
+                        {new Date(notification.date).toLocaleDateString()}
+                      </span>
+                      <span>
+                        {new Date(notification.date).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
                       {notification.warehouseName && (
                         <>
                           <span>•</span>
@@ -189,9 +228,9 @@ export function Notifications({ onNavigate }: NotificationsProps) {
             <Bell className="w-12 h-12 mx-auto mb-3 text-gray-300" />
             <div>No hay notificaciones</div>
             <div className="text-sm mt-1">
-              {filter === 'unread' 
-                ? 'No tienes notificaciones sin leer' 
-                : 'No tienes ninguna notificación'}
+              {filter === "unread"
+                ? "No tienes notificaciones sin leer"
+                : "No tienes ninguna notificación"}
             </div>
           </div>
         )}

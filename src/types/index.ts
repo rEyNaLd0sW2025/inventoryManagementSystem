@@ -37,7 +37,9 @@ export type NotificationType =
   | "solicitud_compra"
   | "observacion"
   | "aprobacion"
-  | "rechazo";
+  | "rechazo"
+  | "stock_minimo"
+  | "stock_cero";
 
 export interface User {
   id: string;
