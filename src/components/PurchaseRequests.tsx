@@ -553,6 +553,8 @@ function RequestCard({
   onDelete,
   onApprove,
   onReject,
+  onObserve,
+  onPutOnHold,
   onUnify,
   similarRequests,
 }: any) {
@@ -633,12 +635,10 @@ function RequestCard({
           </div>
         </div>
       </div>
-
       {/* ÍTEMS EXPANDIDOS */}
       {isExpanded && hasItems && (
         <ItemsTable items={request.items} total={requestTotal} />
       )}
-
       {/* ALMACÉN */}
       <div className="mb-4">
         <div
@@ -652,13 +652,11 @@ function RequestCard({
           {request.warehouseName}
         </div>
       </div>
-
       {/* MOTIVO */}
       <div className="mb-4 p-3 bg-gray-50 rounded-lg">
         <div className="text-xs text-gray-500 mb-1">Motivo</div>
         <div className="text-sm text-gray-900">{request.reason}</div>
       </div>
-
       {/* INFORMACIÓN DE REVISIÓN */}
       {request.reviewedBy && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
@@ -669,7 +667,6 @@ function RequestCard({
           <div className="text-sm text-gray-900">{request.reviewNotes}</div>
         </div>
       )}
-
       {/* ALERTAS DE SIMILARES */}
       {similarRequests.length > 0 && currentUser.role === "super_admin" && (
         <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
@@ -698,17 +695,30 @@ function RequestCard({
           </div>
         </div>
       )}
-
-      {/* ACCIONES */}
+      {/* ACCIONES SUPER ADMIN */}
       {currentUser.role === "super_admin" &&
         (request.status === "pendiente" || request.status === "urgente") && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-4 border-t border-gray-200">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-4 border-t border-gray-200">
             <button
               onClick={onApprove}
               className="flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
             >
               <CheckCircle className="w-4 h-4" />
               Aprobar
+            </button>
+            <button
+              onClick={onObserve}
+              className="flex items-center justify-center gap-2 px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              Observar
+            </button>
+            <button
+              onClick={onPutOnHold}
+              className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <Pause className="w-4 h-4" />
+              En Espera
             </button>
             <button
               onClick={onReject}
@@ -719,7 +729,7 @@ function RequestCard({
             </button>
           </div>
         )}
-
+      {/* ACCIONES DEL ALMACÉN */}
       {currentUser.role === "warehouse_user" &&
         request.status === "observada" && (
           <div className="pt-4 border-t border-gray-200">
@@ -732,7 +742,7 @@ function RequestCard({
             </button>
           </div>
         )}
-
+      {/* ELIMINAR */}
       {currentUser.role === "warehouse_user" && canDelete(request) && (
         <div className="pt-4 border-t border-gray-200">
           <button
