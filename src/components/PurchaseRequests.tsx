@@ -933,7 +933,7 @@ function CreateEditModal({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm text-gray-600 mb-1">
-              Almacén *
+              Almacén Solicitante*
             </label>
             <select
               value={form.warehouseId ?? ""}
@@ -951,7 +951,7 @@ function CreateEditModal({
 
           <div>
             <label className="block text-sm text-gray-600 mb-1">
-              Prioridad -(Urgencia) *
+              Prioridad *
             </label>
             <select
               value={form.urgency ?? "media"}
@@ -1015,7 +1015,7 @@ function CreateEditModal({
                     Descripción
                   </th>
                   <th className="p-3 text-left font-medium text-gray-700">
-                    Unidad
+                    Unidad de Medida
                   </th>
                   <th className="p-3 text-right font-medium text-gray-700">
                     Cant.
