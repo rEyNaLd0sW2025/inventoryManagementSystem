@@ -10,6 +10,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  X,
 } from "lucide-react";
 import {
   movements as initialMovements,
@@ -45,6 +46,18 @@ export function Movements({
     "all"
   );
   const [filterWarehouse, setFilterWarehouse] = useState("all");
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [newMovement, setNewMovement] = useState({
+    productId: "",
+    productCode: "",
+    productName: "",
+    warehouseId: "",
+    warehouseName: "",
+    type: "entrada" as MovementType,
+    quantity: 1,
+    reason: "",
+    responsibleUser: currentUser.name,
+  });
 
   const filteredMovements = movements.filter((movement) => {
     const matchesSearch =
@@ -165,6 +178,107 @@ export function Movements({
       setNotifications((prev: Notification[]) => [notif, ...prev]);
   };
 
+  // Handler para registrar nuevo movimiento
+  const handleRegisterMovement = () => {
+    if (
+      !newMovement.productId ||
+      !newMovement.warehouseId ||
+      !newMovement.reason
+    ) {
+      alert("Por favor complete todos los campos obligatorios");
+      return;
+    }
+
+    const selectedProduct = products.find(
+      (p) => p.id === newMovement.productId
+    );
+    const selectedWarehouse = warehouses.find(
+      (w) => w.id === newMovement.warehouseId
+    );
+
+    const movement: Movement = {
+      id: `MOV-${Date.now()}`,
+      date: new Date().toISOString(),
+      productId: newMovement.productId,
+      productCode: selectedProduct?.code || "",
+      productName: selectedProduct?.name || "",
+      warehouseId: newMovement.warehouseId,
+      warehouseName: selectedWarehouse?.name || "",
+      type: newMovement.type,
+      quantity:
+        newMovement.type === "salida"
+          ? -newMovement.quantity
+          : newMovement.quantity,
+      reason: newMovement.reason,
+      responsibleUser: currentUser.name,
+      status: currentUser.role === "super_admin" ? "aprobado" : "pendiente",
+      observations: "",
+    };
+
+    setMovements((prev) => [movement, ...prev]);
+
+    // Crear notificación
+    const notif = createNotification({
+      type: "entrada_salida",
+      title: "Nuevo movimiento registrado",
+      message: `Movimiento ${movement.type} para ${
+        movement.productName
+      } ha sido ${
+        movement.status === "aprobado"
+          ? "aprobado"
+          : "registrado y está pendiente de aprobación"
+      }.`,
+      warehouseId: movement.warehouseId,
+      warehouseName: movement.warehouseName,
+      read: false,
+      relatedId: movement.id,
+      severity: movement.status === "aprobado" ? "success" : "warning",
+    });
+
+    if (setNotifications) {
+      setNotifications((prev: Notification[]) => [notif, ...prev]);
+    }
+
+    // Reset form and close modal
+    setNewMovement({
+      productId: "",
+      productCode: "",
+      productName: "",
+      warehouseId: "",
+      warehouseName: "",
+      type: "entrada",
+      quantity: 1,
+      reason: "",
+      responsibleUser: currentUser.name,
+    });
+    setShowRegisterModal(false);
+  };
+
+  // Handler para cuando se selecciona un producto
+  const handleProductChange = (productId: string) => {
+    const product = products.find((p) => p.id === productId);
+    if (product) {
+      setNewMovement((prev) => ({
+        ...prev,
+        productId: product.id,
+        productCode: product.code,
+        productName: product.name,
+      }));
+    }
+  };
+
+  // Handler para cuando se selecciona un almacén
+  const handleWarehouseChange = (warehouseId: string) => {
+    const warehouse = warehouses.find((w) => w.id === warehouseId);
+    if (warehouse) {
+      setNewMovement((prev) => ({
+        ...prev,
+        warehouseId: warehouse.id,
+        warehouseName: warehouse.name,
+      }));
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -175,12 +289,151 @@ export function Movements({
             {filteredMovements.length} de {movements.length} movimientos
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <button
+          onClick={() => setShowRegisterModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
           <Plus className="w-4 h-4" />
           Registrar Movimiento
         </button>
       </div>
 
+      {/* Modal de Registro */}
+      {showRegisterModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                Registrar Nuevo Movimiento
+              </h3>
+              <button
+                onClick={() => setShowRegisterModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {/* Tipo de Movimiento */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Movimiento *
+                </label>
+                <select
+                  value={newMovement.type}
+                  onChange={(e) =>
+                    setNewMovement((prev) => ({
+                      ...prev,
+                      type: e.target.value as MovementType,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="entrada">Entrada</option>
+                  <option value="salida">Salida</option>
+                  <option value="ajuste">Ajuste</option>
+                  <option value="reintegro">Reintegro</option>
+                  <option value="transferencia">Transferencia</option>
+                </select>
+              </div>
+
+              {/* Producto */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Producto *
+                </label>
+                <select
+                  value={newMovement.productId}
+                  onChange={(e) => handleProductChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Seleccionar producto</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} ({product.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Almacén */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Almacén *
+                </label>
+                <select
+                  value={newMovement.warehouseId}
+                  onChange={(e) => handleWarehouseChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Seleccionar almacén</option>
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Cantidad */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cantidad *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={newMovement.quantity}
+                  onChange={(e) =>
+                    setNewMovement((prev) => ({
+                      ...prev,
+                      quantity: parseInt(e.target.value) || 1,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Motivo */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Motivo *
+                </label>
+                <textarea
+                  value={newMovement.reason}
+                  onChange={(e) =>
+                    setNewMovement((prev) => ({
+                      ...prev,
+                      reason: e.target.value,
+                    }))
+                  }
+                  placeholder="Describe el motivo del movimiento..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowRegisterModal(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRegisterMovement}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Registrar Movimiento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resto del código existente (Estadísticas, Filtros, Tabla) */}
       {/* Estadísticas rápidas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-gray-200 p-4">

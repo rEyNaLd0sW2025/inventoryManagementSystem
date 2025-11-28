@@ -320,8 +320,8 @@ export function PurchaseRequests({
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
             {currentUser.role === "super_admin"
-              ? "Cola de Revisión de Compras"
-              : "Mis Solicitudes de Compra"}
+              ? "Cola de Revisión de Ordenes de Pedido"
+              : "Mis Solicitudes de Ordenes  de Pedido"}
           </h2>
           <p className="text-gray-600 mt-1">
             {currentUser.role === "super_admin"
@@ -410,7 +410,7 @@ export function PurchaseRequests({
             onChange={(e) => setFilterUrgency(e.target.value as any)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Todas las urgencias</option>
+            <option value="all">Tipo de Prioridad</option>
             <option value="urgente">Urgente</option>
             <option value="alta">Alta</option>
             <option value="media">Media</option>
@@ -588,7 +588,7 @@ function RequestCard({
               {getUrgencyLabel(request.urgency)}
             </span>
             <span className="inline-flex px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-              {classifyRequest(request) === "mayor" ? "Mayor" : "Menor"}
+              {classifyRequest(request) === "mayor" ? "Entrada" : "Salida"}
             </span>
             {similarRequests.length > 0 &&
               currentUser.role === "super_admin" && (
@@ -706,7 +706,7 @@ function RequestCard({
               <CheckCircle className="w-4 h-4" />
               Aprobar
             </button>
-            <button
+            {/* <button
               onClick={onObserve}
               className="flex items-center justify-center gap-2 px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
             >
@@ -719,7 +719,7 @@ function RequestCard({
             >
               <Pause className="w-4 h-4" />
               En Espera
-            </button>
+            </button> */}
             <button
               onClick={onReject}
               className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
@@ -975,7 +975,7 @@ function CreateEditModal({
             />
           </div>
 
-          <div>
+          {/* <div>
             <label className="block text-sm text-gray-600 mb-1">
               Precio Unitario Estimado
             </label>
@@ -987,7 +987,7 @@ function CreateEditModal({
               }
               className="w-full px-3 py-2 border rounded-lg"
             />
-          </div>
+          </div> */}
         </div>
 
         {/* TABLA DE ÍTEMS */}
