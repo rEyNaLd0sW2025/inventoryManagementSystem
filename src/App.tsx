@@ -57,6 +57,11 @@ export default function App() {
     }
   };
 
+  // 👇 agrega estos
+  const [products, setProducts] = useState<any[]>([]);
+  const [movements, setMovements] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+
   const renderPage = () => {
     switch (currentPage) {
       case "dashboard":
@@ -90,6 +95,12 @@ export default function App() {
             requests={purchaseRequests}
             setRequests={setPurchaseRequests}
             setNotifications={setNotifications}
+            products={products}
+            setProducts={setProducts}
+            movements={movements}
+            setMovements={setMovements}
+            orders={orders}
+            setOrders={setOrders}
           />
         );
       case "notifications":
