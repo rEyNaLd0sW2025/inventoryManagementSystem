@@ -152,6 +152,7 @@ export interface PurchaseRequest {
   purchaseOrderNumber?: string;
   deliveryDate?: string;
   cancelReason?: string;
+  source?: string;
 }
 
 export interface Notification {

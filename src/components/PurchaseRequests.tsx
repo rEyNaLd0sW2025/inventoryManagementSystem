@@ -2113,7 +2113,7 @@ function RequestCard({
               <CheckCircle className="w-4 h-4" />
               Aprobar
             </button>
-            <button
+            {/* <button
               onClick={onObserve}
               className="flex items-center justify-center gap-2 px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
             >
@@ -2126,7 +2126,7 @@ function RequestCard({
             >
               <Pause className="w-4 h-4" />
               En Espera
-            </button>
+            </button> */}
             <button
               onClick={onReject}
               className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
