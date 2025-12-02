@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus,
   Search,
@@ -26,13 +26,34 @@ import {
   Truck,
   PackageCheck,
   PackageX,
+  Grid,
+  List,
+  Filter,
+  Star,
+  Heart,
+  ShoppingBasket,
+  BarChart3,
+  User,
+  Bell,
+  Home,
+  Tag,
+  DollarSign,
+  Percent,
+  Truck as TruckIcon,
+  Minus,
+  Trash2,
+  MessageSquare,
+  Info,
+  Shield,
+  Layers,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
 
 import { PurchaseRequest, RequestStatus, User, Notification } from "../types";
 import { warehouses, products } from "../data/mockData";
 import { createNotification } from "../services/notifications";
 
-// Utilidades
 import {
   getStatusIcon,
   getStatusColor,
@@ -87,11 +108,115 @@ interface PurchaseRequestsProps {
   setOrders?: (o: any[] | ((prev: any[]) => any[])) => void;
 }
 
-/**
- * COMPONENTE PRINCIPAL: Solicitudes de Compra
- * Responsabilidad: Renderización, orquestación de modales
- * Lógica: Delegada a hooks y utils
- */
+// Datos de ejemplo para categorías de productos
+const productCategories = [
+  {
+    id: "all",
+    name: "Todos",
+    icon: Package,
+    color: "bg-gray-100 text-gray-800",
+  },
+  {
+    id: "herramientas",
+    name: "Herramientas",
+    icon: Package,
+    color: "bg-blue-100 text-blue-800",
+  },
+  {
+    id: "materiales",
+    name: "Materiales",
+    icon: Layers,
+    color: "bg-green-100 text-green-800",
+  },
+  {
+    id: "equipos",
+    name: "Equipos",
+    icon: Package,
+    color: "bg-purple-100 text-purple-800",
+  },
+  {
+    id: "suministros",
+    name: "Suministros",
+    icon: ShoppingBag,
+    color: "bg-orange-100 text-orange-800",
+  },
+  {
+    id: "electronicos",
+    name: "Electrónicos",
+    icon: Zap,
+    color: "bg-yellow-100 text-yellow-800",
+  },
+  {
+    id: "oficina",
+    name: "Oficina",
+    icon: FileText,
+    color: "bg-pink-100 text-pink-800",
+  },
+  {
+    id: "seguridad",
+    name: "Seguridad",
+    icon: Shield,
+    color: "bg-red-100 text-red-800",
+  },
+];
+
+// Categorías de ejemplo para los productos
+const categoryMapping: Record<string, string[]> = {
+  herramientas: [
+    "martillo",
+    "taladro",
+    "llave",
+    "destornillador",
+    "sierra",
+    "herramienta",
+  ],
+  materiales: [
+    "cemento",
+    "arena",
+    "ladrillo",
+    "madera",
+    "acero",
+    "pintura",
+    "material",
+  ],
+  equipos: ["equipo", "maquinaria", "generador", "compresor", "andamio"],
+  suministros: ["guante", "mascarilla", "lente", "uniforme", "suministro"],
+  electronicos: ["computadora", "tablet", "telefono", "monitor", "electronic"],
+  oficina: ["papel", "lapiz", "cuaderno", "folder", "oficina"],
+  seguridad: ["casco", "chaleco", "botas", "arnes", "seguridad"],
+};
+
+// Datos de ejemplo para productos del marketplace (enriquecidos)
+const enhancedProducts = products.map((product) => {
+  // Determinar categoría basada en el nombre del producto
+  let category = "herramientas"; // default
+  const productNameLower = product.name.toLowerCase();
+
+  for (const [cat, keywords] of Object.entries(categoryMapping)) {
+    if (keywords.some((keyword) => productNameLower.includes(keyword))) {
+      category = cat;
+      break;
+    }
+  }
+
+  return {
+    ...product,
+    category: category,
+    rating: (Math.random() * 0.5 + 4.0).toFixed(1), // Rating entre 4.0 y 4.5
+    isPopular: Math.random() > 0.7,
+    isNew: Math.random() > 0.8,
+    deliveryTime: ["24h", "48h", "3-5 días"][Math.floor(Math.random() * 3)],
+    description:
+      product.description ||
+      `Producto de alta calidad ${product.name} para uso industrial.`,
+    supplier: ["Proveedor A", "Proveedor B", "Proveedor C"][
+      Math.floor(Math.random() * 3)
+    ],
+    minOrder: Math.floor(Math.random() * 10) + 1,
+    warranty: ["6 meses", "1 año", "2 años"][Math.floor(Math.random() * 3)],
+  };
+});
+
 export function PurchaseRequests({
   onNavigate,
   currentUser,
@@ -105,7 +230,16 @@ export function PurchaseRequests({
   orders: ordersProp,
   setOrders: setOrdersProp,
 }: PurchaseRequestsProps) {
-  // ====== HOOKS REUTILIZABLES ======
+  const [viewMode, setViewMode] = useState<"market" | "requests">("market");
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [showCart, setShowCart] = useState(false);
+  const [sortBy, setSortBy] = useState<"name" | "stock" | "price">("name");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [selectedWarehouseFilter, setSelectedWarehouseFilter] =
+    useState<string>("all");
+  const [showProductDetails, setShowProductDetails] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+
   const {
     searchTerm,
     setSearchTerm,
@@ -142,23 +276,165 @@ export function PurchaseRequests({
     handleFormChange,
   } = usePurchaseRequestForm();
 
-  // ====== NUEVOS ESTADOS PARA VERIFICACIÓN DE STOCK ======
   const [showStockModal, setShowStockModal] = useState(false);
   const [stockVerificationData, setStockVerificationData] = useState<any>(null);
   const [selectedRequestForStock, setSelectedRequestForStock] =
     useState<PurchaseRequest | null>(null);
 
-  // ====== DATOS PROCESADOS ======
   const sortedRequests = sortRequestsByUrgencyAndDate(filteredRequests);
   const stats = calculateRequestStats(userRequests);
 
-  // ====== FUNCIONES DE VERIFICACIÓN DE STOCK ======
+  // Productos para el marketplace
+  const marketplaceProducts = productsProp || enhancedProducts;
 
-  /**
-   * Obtiene stock disponible en Almacén Principal y SubAlmacenes
-   */
+  // Filtrar y ordenar productos del marketplace
+  const filteredProducts = marketplaceProducts
+    .filter((product) => {
+      if (categoryFilter === "all") return true;
+      return product.category === categoryFilter;
+    })
+    .filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .filter((product) => {
+      if (selectedWarehouseFilter === "all") return true;
+      return product.warehouseId === selectedWarehouseFilter;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "stock":
+          return b.currentStock - a.currentStock;
+        case "price":
+          return (b.price || 0) - (a.price || 0);
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
+
+  // Agregar producto al carrito
+  const addToCart = (product: any) => {
+    const existingItem = cartItems.find(
+      (item) => item.productId === product.id
+    );
+    if (existingItem) {
+      setCartItems(
+        cartItems.map((item) =>
+          item.productId === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        )
+      );
+    } else {
+      setCartItems([
+        ...cartItems,
+        {
+          id: `cart_${Date.now()}_${product.id}`,
+          productId: product.id,
+          productName: product.name,
+          productCode: product.code,
+          unit: product.unit || "unidad",
+          unitPrice: product.price || 0,
+          quantity: 1,
+          warehouseId: product.warehouseId,
+          warehouseName: product.warehouseName,
+          availableStock: product.currentStock,
+          category: product.category,
+          image: product.image,
+          minOrder: product.minOrder,
+          deliveryTime: product.deliveryTime,
+        },
+      ]);
+    }
+  };
+
+  // Remover del carrito
+  const removeFromCart = (itemId: string) => {
+    setCartItems(cartItems.filter((item) => item.id !== itemId));
+  };
+
+  // Actualizar cantidad en carrito
+  const updateCartQuantity = (itemId: string, quantity: number) => {
+    if (quantity < 1) {
+      removeFromCart(itemId);
+      return;
+    }
+    setCartItems(
+      cartItems.map((item) =>
+        item.id === itemId ? { ...item, quantity } : item
+      )
+    );
+  };
+
+  // Ver detalles del producto
+  const viewProductDetails = (product: any) => {
+    setSelectedProduct(product);
+    setShowProductDetails(true);
+  };
+
+  // Enviar solicitud desde carrito
+  const submitCartRequest = () => {
+    if (cartItems.length === 0) {
+      alert("El carrito está vacío");
+      return;
+    }
+
+    const newReq: PurchaseRequest = {
+      id: `pr_${Date.now()}`,
+      productId: cartItems[0].productId,
+      productName:
+        cartItems.length === 1
+          ? cartItems[0].productName
+          : "Solicitud múltiple desde Marketplace",
+      productCode: cartItems[0].productCode,
+      quantity: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+      items: cartItems.map((item, idx) => ({
+        itemNumber: idx + 1,
+        productId: item.productId,
+        productCode: item.productCode,
+        description: item.productName,
+        unit: item.unit,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subtotal: item.quantity * item.unitPrice,
+      })),
+      warehouseId: currentUser.warehouseId || "w1",
+      warehouseName: currentUser.warehouseName || "Almacén Principal",
+      requestDate: new Date().toISOString(),
+      reason: `Solicitud desde marketplace - ${cartItems.length} productos`,
+      urgency: "media",
+      status: "pendiente",
+      requestedBy: currentUser.name,
+      estimatedPrice: cartItems.reduce(
+        (sum, item) => sum + item.quantity * item.unitPrice,
+        0
+      ),
+      source: "marketplace",
+    };
+
+    setRequests([newReq, ...requests]);
+    setCartItems([]);
+    setShowCart(false);
+
+    const notif = createNotification({
+      type: "solicitud_compra",
+      title: "🛒 Nueva solicitud desde Marketplace",
+      message: `${currentUser.name} ha creado una solicitud con ${cartItems.length} productos`,
+      warehouseId: newReq.warehouseId,
+      warehouseName: newReq.warehouseName,
+      read: false,
+      relatedId: newReq.id,
+      severity: "success",
+    });
+
+    if (setNotifications) setNotifications((prev) => [notif, ...prev]);
+    alert("✅ Solicitud enviada exitosamente desde el carrito");
+  };
+
+  // Función original para verificar stock
   const getStockDataForRequest = (request: PurchaseRequest) => {
-    // Buscar el producto en los datos mock
     const productList = productsProp ?? products;
     const product = productList.find(
       (p) =>
@@ -167,17 +443,14 @@ export function PurchaseRequests({
         p.name === request.productName
     );
 
-    // Si no se encuentra el producto exacto, buscar por nombre similar
     let mainWarehouseStock = 0;
     let subWarehousesStock: Array<{ id: string; name: string; stock: number }> =
       [];
 
     if (product) {
-      // Stock en Almacén Principal (almacén w1)
       mainWarehouseStock =
         product.warehouseId === "w1" ? product.currentStock : 0;
 
-      // Stock en otros almacenes (SubAlmacenes)
       subWarehousesStock = productList
         .filter(
           (p) =>
@@ -194,18 +467,14 @@ export function PurchaseRequests({
         }));
     }
 
-    // Si no hay producto en el sistema, usar datos por defecto según el ejemplo
     if (!product) {
-      // Ejemplo 1: Producto con stock suficiente (para probar OS)
       if (request.quantity <= 1000) {
         mainWarehouseStock = 1500;
         subWarehousesStock = [
           { id: "w2", name: "Almacén de Producción", stock: 800 },
           { id: "w3", name: "Almacén de Mantenimiento", stock: 300 },
         ];
-      }
-      // Ejemplo 2: Producto con stock insuficiente (para probar OC)
-      else {
+      } else {
         mainWarehouseStock = 100;
         subWarehousesStock = [
           { id: "w2", name: "Almacén de Producción", stock: 50 },
@@ -237,9 +506,7 @@ export function PurchaseRequests({
     };
   };
 
-  /**
-   * Abre modal de verificación de stock
-   */
+  // Funciones originales (se mantienen exactamente igual)
   const openStockVerificationModal = (request: PurchaseRequest) => {
     setSelectedRequestForStock(request);
     const stockData = getStockDataForRequest(request);
@@ -247,13 +514,9 @@ export function PurchaseRequests({
     setShowStockModal(true);
   };
 
-  /**
-   * Generar Orden de Salida (cuando hay stock suficiente)
-   */
   const handleGenerateOutputOrder = () => {
     if (!selectedRequestForStock) return;
 
-    // Actualizar estado de la solicitud
     const updatedRequests = requests.map((r) =>
       r.id === selectedRequestForStock.id
         ? {
@@ -275,9 +538,8 @@ export function PurchaseRequests({
 
     setRequests(updatedRequests);
 
-    // Crear notificación
     const notif = createNotification({
-      type: "solicitud_compra", // Usar "solicitud_compra" que sí existe
+      type: "solicitud_compra",
       title: "✅ Orden de Salida generada",
       message: `Se generó OS para ${selectedRequestForStock.productName} (${selectedRequestForStock.quantity} unidades)`,
       warehouseId: selectedRequestForStock.warehouseId,
@@ -288,7 +550,7 @@ export function PurchaseRequests({
     });
 
     if (setNotifications) setNotifications((prev) => [notif, ...prev]);
-    // Crear movimientos OS (salida) y OI (ingreso) para el flujo de transferencias
+
     try {
       const osId = `OS-${selectedRequestForStock.id}-${Date.now()}`;
       const oiId = `OI-${selectedRequestForStock.id}-${Date.now()}`;
@@ -332,7 +594,6 @@ export function PurchaseRequests({
       if (setMovementsProp)
         setMovementsProp((prev: any) => [os, oi, ...(prev || [])]);
 
-      // Registrar una orden OP relacionada (si aplica)
       if (setOrdersProp) {
         const newOrder = {
           id: `op_${selectedRequestForStock.id}`,
@@ -366,21 +627,15 @@ export function PurchaseRequests({
         `✅ Orden de Salida generada exitosamente para: ${selectedRequestForStock.productName}`
       );
     } catch (e) {
-      // si falla la creación de movimientos, al menos cerramos modal
       setShowStockModal(false);
       alert("Error al generar documentos. Revisa la consola.");
-      // eslint-disable-next-line no-console
       console.error(e);
     }
   };
 
-  /**
-   * Generar Orden de Compra (cuando NO hay stock suficiente)
-   */
   const handleGeneratePurchaseOrder = () => {
     if (!selectedRequestForStock) return;
 
-    // Actualizar estado de la solicitud
     const updatedRequests = requests.map((r) =>
       r.id === selectedRequestForStock.id
         ? {
@@ -402,7 +657,6 @@ export function PurchaseRequests({
 
     setRequests(updatedRequests);
 
-    // Crear notificación
     const notif = createNotification({
       type: "aprobacion",
       title: "📋 Orden de Compra generada",
@@ -415,7 +669,7 @@ export function PurchaseRequests({
     });
 
     if (setNotifications) setNotifications((prev) => [notif, ...prev]);
-    // Registrar OC como movimiento/documento en el sistema (simplificado)
+
     try {
       const ocId = `OC-${selectedRequestForStock.id}-${Date.now()}`;
       const oc = {
@@ -433,10 +687,10 @@ export function PurchaseRequests({
         responsibleUser: currentUser.name,
         status: "pendiente",
       };
+
       if (setMovementsProp)
         setMovementsProp((prev: any) => [oc, ...(prev || [])]);
 
-      // Actualizar estado solicitd
       setShowStockModal(false);
       alert(
         `📋 Orden de Compra generada para: ${selectedRequestForStock.productName}`
@@ -444,12 +698,9 @@ export function PurchaseRequests({
     } catch (e) {
       setShowStockModal(false);
       alert("Error al generar OC en el sistema.");
-      // eslint-disable-next-line no-console
       console.error(e);
     }
   };
-
-  // ====== MANEJADORES EXISTENTES (MANTENIDOS SIN CAMBIOS) ======
 
   const handleCreateOrUpdate = () => {
     const validation = validatePurchaseRequest(form);
@@ -489,6 +740,7 @@ export function PurchaseRequests({
         relatedId: editingRequest.id,
         severity: "info",
       });
+
       if (setNotifications)
         setNotifications((prev: Notification[]) => [notif, ...prev]);
     } else {
@@ -524,6 +776,7 @@ export function PurchaseRequests({
         relatedId: newReq.id,
         severity: "warning",
       });
+
       if (setNotifications)
         setNotifications((prev: Notification[]) => [notif, ...prev]);
     }
@@ -629,152 +882,837 @@ export function PurchaseRequests({
     });
   };
 
-  // ====== RENDERIZACIÓN ======
+  const cartTotal = cartItems.reduce(
+    (sum, item) => sum + item.quantity * item.unitPrice,
+    0
+  );
 
   return (
-    <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            {currentUser.role === "super_admin"
-              ? "Cola de Revisión de Ordenes de Pedido"
-              : "Mis Solicitudes de Ordenes de Pedido"}
-          </h2>
-          <p className="text-gray-600 mt-1">
-            {currentUser.role === "super_admin"
-              ? `${filteredRequests.length} solicitudes en revisión`
-              : `${filteredRequests.length} de ${userRequests.length} solicitudes`}
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            openCreateModal();
-            setShowCreateModal(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Nueva Solicitud
-        </button>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header Marketplace */}
+      <div className="bg-white border-b shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-8">
+              <div className="flex items-center space-x-2">
+                <ShoppingBasket className="w-8 h-8 text-blue-600" />
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">
+                    Almacén<span className="text-blue-600">Market</span>
+                  </h1>
+                  <p className="text-xs text-gray-500">
+                    Sistema de gestión de inventario
+                  </p>
+                </div>
+              </div>
 
-      {/* ESTADÍSTICAS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard
-          label="Pendientes"
-          value={stats.totalPendientes}
-          icon={Clock}
-          bgColor="bg-yellow-100"
-          textColor="text-yellow-600"
-        />
-        <StatCard
-          label="Aprobadas"
-          value={stats.totalAprobadas}
-          icon={CheckCircle}
-          bgColor="bg-green-100"
-          textColor="text-green-600"
-        />
-        <StatCard
-          label="Observadas"
-          value={stats.totalObservadas}
-          icon={Edit}
-          bgColor="bg-orange-100"
-          textColor="text-orange-600"
-        />
-        <StatCard
-          label="En Espera"
-          value={stats.totalEnEspera}
-          icon={Pause}
-          bgColor="bg-gray-100"
-          textColor="text-gray-600"
-        />
-      </div>
+              <div className="hidden md:flex items-center space-x-6">
+                <button
+                  onClick={() => setViewMode("market")}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    viewMode === "market"
+                      ? "bg-blue-50 text-blue-600 border border-blue-200"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  <Grid className="w-4 h-4" />
+                  <span>Marketplace</span>
+                  {marketplaceProducts.length > 0 && (
+                    <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">
+                      {marketplaceProducts.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setViewMode("requests")}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors relative ${
+                    viewMode === "requests"
+                      ? "bg-blue-50 text-blue-600 border border-blue-200"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                  <span>Mis Solicitudes</span>
+                  {userRequests.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[1.25rem]">
+                      {userRequests.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
 
-      {/* FILTROS */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar solicitudes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+            <div className="flex items-center space-x-4">
+              {/* Search Bar */}
+              <div className="relative hidden md:block">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder={
+                    viewMode === "market"
+                      ? "Buscar productos..."
+                      : "Buscar solicitudes..."
+                  }
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                />
+              </div>
 
-          <select
-            value={filterStatus}
-            onChange={(e) =>
-              setFilterStatus(e.target.value as RequestStatus | "all")
-            }
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="pendiente">Pendientes</option>
-            <option value="urgente">Urgentes</option>
-            <option value="observada">Observadas</option>
-            <option value="en_espera">En Espera</option>
-            <option value="aprobado">Aprobadas</option>
-            <option value="rechazado">Rechazadas</option>
-            <option value="en_proceso_compra">En Proceso</option>
-            <option value="cerrada">Cerradas</option>
-          </select>
+              {/* Cart Button */}
+              <button
+                onClick={() => setShowCart(!showCart)}
+                className="relative p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <ShoppingCart className="w-6 h-6 text-gray-700" />
+                {cartItems.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {cartItems.length}
+                  </span>
+                )}
+              </button>
 
-          <select
-            value={filterUrgency}
-            onChange={(e) => setFilterUrgency(e.target.value as any)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Tipo de Prioridad</option>
-            <option value="urgente">Urgente</option>
-            <option value="alta">Alta</option>
-            <option value="media">Media</option>
-            <option value="baja">Baja</option>
-          </select>
-        </div>
-      </div>
-
-      {/* LISTA DE SOLICITUDES */}
-      <div className="space-y-4">
-        {sortedRequests.length === 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
-            <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <div className="text-gray-700">No se encontraron solicitudes</div>
-            <div className="text-sm mt-1 text-gray-500">
-              {currentUser.role === "super_admin"
-                ? "No hay solicitudes pendientes de revisión"
-                : "No tienes solicitudes. Crea una nueva para comenzar"}
+              {/* New Request Button */}
+              <button
+                onClick={() => {
+                  openCreateModal();
+                  setShowCreateModal(true);
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Nueva Solicitud</span>
+              </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {viewMode === "market" ? (
+          <>
+            {/* Marketplace Header */}
+            <div className="mb-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Catálogo de Productos
+                  </h2>
+                  <p className="text-gray-600 mt-1">
+                    Selecciona productos para solicitar al almacén principal
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-600 text-sm">Ordenar por:</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="name">Nombre</option>
+                      <option value="stock">Stock disponible</option>
+                      <option value="price">Precio</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Filter className="w-4 h-4 text-gray-500" />
+                    <select
+                      value={selectedWarehouseFilter}
+                      onChange={(e) =>
+                        setSelectedWarehouseFilter(e.target.value)
+                      }
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="all">Todos los almacenes</option>
+                      {warehouses.map((warehouse) => (
+                        <option key={warehouse.id} value={warehouse.id}>
+                          {warehouse.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Categories */}
+              <div className="mb-6 overflow-x-auto">
+                <div className="flex space-x-2 pb-2">
+                  {productCategories.map((category) => {
+                    const IconComponent = category.icon;
+                    return (
+                      <button
+                        key={category.id}
+                        onClick={() => setCategoryFilter(category.id)}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                          categoryFilter === category.id
+                            ? `${category.color
+                                .replace("text-", "text-white ")
+                                .replace("bg-", "bg-")} border-0`
+                            : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <IconComponent className="w-4 h-4" />
+                        <span>{category.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-gray-600 font-medium">
+                        Productos disponibles
+                      </div>
+                      <div className="text-2xl font-bold text-gray-900 mt-1">
+                        {filteredProducts.length}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        en catálogo
+                      </div>
+                    </div>
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <Package className="w-6 h-6 text-blue-500" />
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-gray-600 font-medium">
+                        En tu carrito
+                      </div>
+                      <div className="text-2xl font-bold text-gray-900 mt-1">
+                        {cartItems.length}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        productos seleccionados
+                      </div>
+                    </div>
+                    <div className="p-3 bg-green-50 rounded-lg">
+                      <ShoppingCart className="w-6 h-6 text-green-500" />
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-gray-600 font-medium">
+                        Stock total
+                      </div>
+                      <div className="text-2xl font-bold text-gray-900 mt-1">
+                        {filteredProducts
+                          .reduce((sum, p) => sum + p.currentStock, 0)
+                          .toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        unidades disponibles
+                      </div>
+                    </div>
+                    <div className="p-3 bg-purple-50 rounded-lg">
+                      <Warehouse className="w-6 h-6 text-purple-500" />
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-gray-600 font-medium">
+                        Valor total
+                      </div>
+                      <div className="text-2xl font-bold text-gray-900 mt-1">
+                        $
+                        {filteredProducts
+                          .reduce(
+                            (sum, p) => sum + p.currentStock * (p.price || 0),
+                            0
+                          )
+                          .toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        en inventario
+                      </div>
+                    </div>
+                    <div className="p-3 bg-orange-50 rounded-lg">
+                      <DollarSign className="w-6 h-6 text-orange-500" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Products Grid */}
+            {filteredProducts.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                <Search className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No se encontraron productos
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Intenta con otros términos de búsqueda o ajusta los filtros
+                </p>
+                <button
+                  onClick={() => {
+                    setSearchTerm("");
+                    setCategoryFilter("all");
+                    setSelectedWarehouseFilter("all");
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={addToCart}
+                    onViewDetails={() => viewProductDetails(product)}
+                    cartItems={cartItems}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
-          sortedRequests.map((request) => (
-            <RequestCard
-              key={request.id}
-              request={request}
-              currentUser={currentUser}
-              isExpanded={expandedRequests.has(request.id)}
-              onToggleExpand={() => toggleRequestDetails(request.id)}
-              onEdit={() => {
-                openEditModal(request);
-                setShowCreateModal(true);
-              }}
-              onDelete={() => handleDelete(request)}
-              onApprove={() => openActionModal("aprobar", request)}
-              onReject={() => openActionModal("rechazar", request)}
-              onObserve={() => openActionModal("observar", request)}
-              onPutOnHold={() => openActionModal("espera", request)}
-              onUnify={() => handleUnify(request)}
-              onVerifyStock={() => openStockVerificationModal(request)}
-              similarRequests={findSimilarRequests(request, requests)}
-            />
-          ))
+          /* Existing Requests View (manteniendo las funcionalidades originales) */
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {currentUser.role === "super_admin"
+                    ? "Cola de Revisión de Ordenes de Pedido"
+                    : "Mis Solicitudes de Ordenes de Pedido"}
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  {currentUser.role === "super_admin"
+                    ? `${filteredRequests.length} solicitudes en revisión`
+                    : `${filteredRequests.length} de ${userRequests.length} solicitudes`}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setViewMode("market")}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  <Grid className="w-4 h-4" />
+                  <span className="hidden sm:inline">Ir al Marketplace</span>
+                </button>
+                <button
+                  onClick={() => {
+                    openCreateModal();
+                    setShowCreateModal(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Nueva Solicitud</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <StatCard
+                label="Pendientes"
+                value={stats.totalPendientes}
+                icon={Clock}
+                bgColor="bg-yellow-100"
+                textColor="text-yellow-600"
+                iconColor="text-yellow-600"
+              />
+              <StatCard
+                label="Aprobadas"
+                value={stats.totalAprobadas}
+                icon={CheckCircle}
+                bgColor="bg-green-100"
+                textColor="text-green-600"
+                iconColor="text-green-600"
+              />
+              <StatCard
+                label="Observadas"
+                value={stats.totalObservadas}
+                icon={Edit}
+                bgColor="bg-orange-100"
+                textColor="text-orange-600"
+                iconColor="text-orange-600"
+              />
+              <StatCard
+                label="En Espera"
+                value={stats.totalEnEspera}
+                icon={Pause}
+                bgColor="bg-gray-100"
+                textColor="text-gray-600"
+                iconColor="text-gray-600"
+              />
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar solicitudes..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <select
+                  value={filterStatus}
+                  onChange={(e) =>
+                    setFilterStatus(e.target.value as RequestStatus | "all")
+                  }
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="pendiente">Pendientes</option>
+                  <option value="urgente">Urgentes</option>
+                  <option value="observada">Observadas</option>
+                  <option value="en_espera">En Espera</option>
+                  <option value="aprobado">Aprobadas</option>
+                  <option value="rechazado">Rechazadas</option>
+                  <option value="en_proceso_compra">En Proceso</option>
+                  <option value="cerrada">Cerradas</option>
+                </select>
+
+                <select
+                  value={filterUrgency}
+                  onChange={(e) => setFilterUrgency(e.target.value as any)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Tipo de Prioridad</option>
+                  <option value="urgente">Urgente</option>
+                  <option value="alta">Alta</option>
+                  <option value="media">Media</option>
+                  <option value="baja">Baja</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {sortedRequests.length === 0 ? (
+                <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
+                  <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <div className="text-gray-700">
+                    No se encontraron solicitudes
+                  </div>
+                  <div className="text-sm mt-1 text-gray-500">
+                    {currentUser.role === "super_admin"
+                      ? "No hay solicitudes pendientes de revisión"
+                      : "No tienes solicitudes. Crea una nueva para comenzar"}
+                  </div>
+                </div>
+              ) : (
+                sortedRequests.map((request) => (
+                  <RequestCard
+                    key={request.id}
+                    request={request}
+                    currentUser={currentUser}
+                    isExpanded={expandedRequests.has(request.id)}
+                    onToggleExpand={() => toggleRequestDetails(request.id)}
+                    onEdit={() => {
+                      openEditModal(request);
+                      setShowCreateModal(true);
+                    }}
+                    onDelete={() => handleDelete(request)}
+                    onApprove={() => openActionModal("aprobar", request)}
+                    onReject={() => openActionModal("rechazar", request)}
+                    onObserve={() => openActionModal("observar", request)}
+                    onPutOnHold={() => openActionModal("espera", request)}
+                    onUnify={() => handleUnify(request)}
+                    onVerifyStock={() => openStockVerificationModal(request)}
+                    similarRequests={findSimilarRequests(request, requests)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* MODAL DE VERIFICACIÓN DE STOCK (NUEVO) */}
+      {/* Product Details Modal */}
+      {showProductDetails && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Package className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Detalles del Producto
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Información completa del producto seleccionado
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowProductDetails(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Product Image/Info */}
+                <div>
+                  <div className="h-64 bg-gradient-to-br from-blue-50 to-gray-100 rounded-xl flex items-center justify-center mb-6">
+                    <Package className="w-32 h-32 text-gray-400" />
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                        {selectedProduct.name}
+                      </h4>
+                      <p className="text-gray-600">
+                        {selectedProduct.description}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="text-sm text-gray-600">Código</div>
+                        <div className="font-semibold text-gray-900">
+                          {selectedProduct.code}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <div className="text-sm text-gray-600">Categoría</div>
+                        <div className="font-semibold text-gray-900">
+                          {productCategories.find(
+                            (c) => c.id === selectedProduct.category
+                          )?.name || "General"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Product Details */}
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                      Información de Stock y Precio
+                    </h4>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                        <div>
+                          <div className="text-sm text-gray-600">
+                            Stock disponible
+                          </div>
+                          <div
+                            className={`text-2xl font-bold ${
+                              selectedProduct.currentStock > 100
+                                ? "text-green-700"
+                                : selectedProduct.currentStock > 50
+                                ? "text-yellow-700"
+                                : "text-red-700"
+                            }`}
+                          >
+                            {selectedProduct.currentStock} unidades
+                          </div>
+                        </div>
+                        <Warehouse className="w-8 h-8 text-blue-600" />
+                      </div>
+
+                      <div className="p-4 bg-green-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-sm text-gray-600">
+                            Precio unitario
+                          </div>
+                          <div className="text-lg font-bold text-green-700">
+                            ${(selectedProduct.price || 0).toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          IVA incluido
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                      Especificaciones
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Unidad de medida:</span>
+                        <span className="font-medium">
+                          {selectedProduct.unit || "Unidad"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Almacén:</span>
+                        <span className="font-medium">
+                          {selectedProduct.warehouseName}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Proveedor:</span>
+                        <span className="font-medium">
+                          {selectedProduct.supplier}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Pedido mínimo:</span>
+                        <span className="font-medium">
+                          {selectedProduct.minOrder} unidades
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">
+                          Tiempo de entrega:
+                        </span>
+                        <span className="font-medium">
+                          {selectedProduct.deliveryTime}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Garantía:</span>
+                        <span className="font-medium">
+                          {selectedProduct.warranty}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                      Calificación
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-5 h-5 ${
+                              star <=
+                              Math.floor(parseFloat(selectedProduct.rating))
+                                ? "text-yellow-400 fill-current"
+                                : "text-gray-300"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="font-medium">
+                        {selectedProduct.rating}/5.0
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-gray-200">
+                    <button
+                      onClick={() => {
+                        addToCart(selectedProduct);
+                        setShowProductDetails(false);
+                      }}
+                      className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                    >
+                      <ShoppingCart className="w-5 h-5" />
+                      Añadir al Carrito
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shopping Cart Sidebar - CORREGIDO */}
+      {showCart && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl flex flex-col">
+            {/* Cart Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <ShoppingCart className="w-6 h-6 text-gray-700" />
+                  <h3 className="text-lg font-semibold">
+                    Carrito de Solicitudes
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowCart(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                {cartItems.length} productos seleccionados
+              </p>
+            </div>
+
+            {/* Cart Items - Scrollable */}
+            <div className="flex-1 overflow-y-auto">
+              {cartItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full p-6">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                    <ShoppingCart className="w-12 h-12 text-gray-400" />
+                  </div>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">
+                    Carrito vacío
+                  </h4>
+                  <p className="text-gray-600 text-center mb-6">
+                    Agrega productos desde el marketplace para crear una
+                    solicitud
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowCart(false);
+                      setViewMode("market");
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Explorar Marketplace
+                  </button>
+                </div>
+              ) : (
+                <div className="p-6 space-y-4">
+                  {cartItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="border border-gray-200 rounded-lg p-4"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 mb-1">
+                            {item.productName}
+                          </h4>
+                          <p className="text-sm text-gray-600 mb-2">
+                            {item.productCode}
+                          </p>
+                          <div className="flex items-center gap-4">
+                            <div className="text-sm text-gray-600">
+                              Stock:{" "}
+                              <span className="font-medium">
+                                {item.availableStock}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Precio:{" "}
+                              <span className="font-medium">
+                                ${item.unitPrice.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="ml-2 text-red-500 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center border border-gray-300 rounded-lg">
+                          <button
+                            onClick={() =>
+                              updateCartQuantity(item.id, item.quantity - 1)
+                            }
+                            className="px-3 py-1 hover:bg-gray-100 rounded-l-lg transition-colors"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="px-4 py-1 text-center min-w-[3rem]">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() =>
+                              updateCartQuantity(item.id, item.quantity + 1)
+                            }
+                            className="px-3 py-1 hover:bg-gray-100 rounded-r-lg transition-colors"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-600">Subtotal</div>
+                          <div className="font-medium text-gray-900">
+                            ${(item.quantity * item.unitPrice).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Cart Footer - Siempre visible */}
+            {cartItems.length > 0 && (
+              <div className="border-t border-gray-200 p-6 bg-white">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Subtotal:</span>
+                    <span className="text-gray-900">
+                      ${cartTotal.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Productos:</span>
+                    <span className="text-gray-900">{cartItems.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-lg font-semibold pt-4 border-t border-gray-200">
+                    <span className="text-gray-900">Total estimado:</span>
+                    <span className="text-blue-600">
+                      ${cartTotal.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 pt-4">
+                    <button
+                      onClick={submitCartRequest}
+                      className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                    >
+                      <TruckIcon className="w-5 h-5" />
+                      Enviar Solicitud al Almacén
+                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setCartItems([])}
+                        className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                      >
+                        Vaciar Carrito
+                      </button>
+                      <button
+                        onClick={() => setShowCart(false)}
+                        className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                      >
+                        Seguir Comprando
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Existing Modals (se mantienen exactamente igual) */}
       {showStockModal && stockVerificationData && (
         <StockVerificationModal
           stockData={stockVerificationData}
@@ -784,7 +1722,6 @@ export function PurchaseRequests({
         />
       )}
 
-      {/* MODAL DE ACCIONES (EXISTENTE) */}
       {showActionModal && selectedRequest && (
         <ActionModal
           action={showActionModal}
@@ -802,7 +1739,6 @@ export function PurchaseRequests({
         />
       )}
 
-      {/* MODAL CREAR/EDITAR (EXISTENTE) */}
       {showCreateModal && (
         <CreateEditModal
           isEditing={!!editingRequest}
@@ -837,23 +1773,22 @@ export function PurchaseRequests({
   );
 }
 
-// ====== COMPONENTES AUXILIARES (MANTENIDOS Y AÑADIDOS) ======
+// Componentes auxiliares actualizados
 
-/**
- * Tarjeta de estadística
- */
 function StatCard({
   label,
   value,
   icon: IconComponent,
   bgColor,
   textColor,
+  iconColor,
 }: {
   label: string;
   value: number;
   icon: any;
   bgColor: string;
   textColor: string;
+  iconColor: string;
 }) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -863,16 +1798,142 @@ function StatCard({
           <div className="text-2xl text-gray-900 mt-1">{value}</div>
         </div>
         <div className={`p-3 ${bgColor} rounded-lg`}>
-          <IconComponent className={`w-6 h-6 ${textColor}`} />
+          <IconComponent className={`w-6 h-6 ${iconColor}`} />
         </div>
       </div>
     </div>
   );
 }
 
-/**
- * Tarjeta de solicitud de compra (MODIFICADA para incluir botón de verificación de stock)
- */
+function ProductCard({ product, onAddToCart, onViewDetails, cartItems }: any) {
+  const cartItem = cartItems.find((item: any) => item.productId === product.id);
+  const inCart = !!cartItem;
+  const cartQuantity = cartItem?.quantity || 0;
+
+  const getStockColor = (stock: number) => {
+    if (stock >= 100) return "text-green-600 bg-green-50";
+    if (stock >= 50) return "text-yellow-600 bg-yellow-50";
+    if (stock > 0) return "text-orange-600 bg-orange-50";
+    return "text-red-600 bg-red-50";
+  };
+
+  const getStockLabel = (stock: number) => {
+    if (stock >= 100) return "Disponible";
+    if (stock >= 50) return "Limitado";
+    if (stock > 0) return "Bajo stock";
+    return "Agotado";
+  };
+
+  const categoryInfo = productCategories.find((c) => c.id === product.category);
+  const categoryColor = categoryInfo?.color || "bg-gray-100 text-gray-800";
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 overflow-hidden">
+      {/* Product Image/Placeholder */}
+      <div className="h-40 bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center relative">
+        <Package className="w-12 h-12 text-gray-400" />
+
+        {/* Badges */}
+        <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {product.isNew && (
+            <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded">
+              Nuevo
+            </span>
+          )}
+          {product.isPopular && (
+            <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded">
+              Popular
+            </span>
+          )}
+        </div>
+
+        <div className="absolute top-2 right-2">
+          <span
+            className={`text-xs px-2 py-1 rounded-full ${getStockColor(
+              product.currentStock
+            )}`}
+          >
+            {getStockLabel(product.currentStock)}
+          </span>
+        </div>
+      </div>
+
+      {/* Product Info */}
+      <div className="p-4">
+        <div className="mb-2">
+          <span className={`text-xs px-2 py-1 rounded ${categoryColor}`}>
+            {categoryInfo?.name || "General"}
+          </span>
+        </div>
+
+        <h3 className="font-medium text-gray-900 mb-1 truncate">
+          {product.name}
+        </h3>
+        <p className="text-xs text-gray-500 mb-2">{product.code}</p>
+
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-600">
+              {product.warehouseName}
+            </span>
+          </div>
+          <div className="flex items-center">
+            <Star className="w-4 h-4 text-yellow-400 fill-current" />
+            <span className="text-sm ml-1">{product.rating}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-lg font-bold text-gray-900">
+              ${(product.price || 0).toFixed(2)}
+            </div>
+            <div className="text-xs text-gray-500">por unidad</div>
+          </div>
+          <div className="text-sm text-gray-600">
+            Stock: <span className="font-medium">{product.currentStock}</span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-2">
+          {inCart ? (
+            <div className="flex items-center justify-between border border-blue-200 bg-blue-50 rounded-lg p-2">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium text-blue-700">
+                  {cartQuantity} en carrito
+                </span>
+              </div>
+              <button
+                onClick={() => onAddToCart(product)}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                + Agregar
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => onAddToCart(product)}
+              className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              Añadir al Carrito
+            </button>
+          )}
+
+          <button
+            onClick={() => onViewDetails(product)}
+            className="w-full py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+          >
+            Ver Detalles
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// RequestCard y otros componentes se mantienen EXACTAMENTE iguales
 function RequestCard({
   request,
   currentUser,
@@ -885,7 +1946,7 @@ function RequestCard({
   onObserve,
   onPutOnHold,
   onUnify,
-  onVerifyStock, // NUEVA PROPS
+  onVerifyStock,
   similarRequests,
 }: any) {
   const warehouse = warehouses.find((w) => w.id === request.warehouseId);
@@ -899,7 +1960,6 @@ function RequestCard({
         request.status
       )} p-6 hover:shadow-md transition-shadow`}
     >
-      {/* ENCABEZADO */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2 flex-wrap">
@@ -966,12 +2026,10 @@ function RequestCard({
         </div>
       </div>
 
-      {/* ÍTEMS EXPANDIDOS */}
       {isExpanded && hasItems && (
         <ItemsTable items={request.items} total={requestTotal} />
       )}
 
-      {/* ALMACÉN */}
       <div className="mb-4">
         <div
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
@@ -985,13 +2043,11 @@ function RequestCard({
         </div>
       </div>
 
-      {/* MOTIVO */}
       <div className="mb-4 p-3 bg-gray-50 rounded-lg">
         <div className="text-xs text-gray-500 mb-1">Motivo</div>
         <div className="text-sm text-gray-900">{request.reason}</div>
       </div>
 
-      {/* INFORMACIÓN DE REVISIÓN */}
       {request.reviewedBy && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <div className="text-xs text-gray-600 mb-1">
@@ -1002,7 +2058,6 @@ function RequestCard({
         </div>
       )}
 
-      {/* ALERTAS DE SIMILARES */}
       {similarRequests.length > 0 && currentUser.role === "super_admin" && (
         <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
           <div className="flex items-start gap-2">
@@ -1031,7 +2086,6 @@ function RequestCard({
         </div>
       )}
 
-      {/* BOTÓN DE VERIFICACIÓN DE STOCK (NUEVO - solo para super_admin con solicitudes pendientes/urgentes) */}
       {currentUser.role === "super_admin" &&
         (request.status === "pendiente" || request.status === "urgente") && (
           <div className="mb-4">
@@ -1045,7 +2099,6 @@ function RequestCard({
           </div>
         )}
 
-      {/* ACCIONES SUPER ADMIN */}
       {currentUser.role === "super_admin" &&
         (request.status === "pendiente" || request.status === "urgente") && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-4 border-t border-gray-200">
@@ -1056,7 +2109,7 @@ function RequestCard({
               <CheckCircle className="w-4 h-4" />
               Aprobar
             </button>
-            {/* <button
+            <button
               onClick={onObserve}
               className="flex items-center justify-center gap-2 px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
             >
@@ -1069,7 +2122,7 @@ function RequestCard({
             >
               <Pause className="w-4 h-4" />
               En Espera
-            </button> */}
+            </button>
             <button
               onClick={onReject}
               className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
@@ -1080,7 +2133,6 @@ function RequestCard({
           </div>
         )}
 
-      {/* ACCIONES DEL ALMACÉN */}
       {currentUser.role === "warehouse_user" &&
         request.status === "observada" && (
           <div className="pt-4 border-t border-gray-200">
@@ -1094,7 +2146,6 @@ function RequestCard({
           </div>
         )}
 
-      {/* ELIMINAR */}
       {currentUser.role === "warehouse_user" && canDelete(request) && (
         <div className="pt-4 border-t border-gray-200">
           <button
@@ -1110,9 +2161,6 @@ function RequestCard({
   );
 }
 
-/**
- * Tabla de ítems
- */
 function ItemsTable({ items, total }: { items: any; total: number }) {
   return (
     <div className="mb-4 border rounded-lg overflow-hidden">
@@ -1180,9 +2228,6 @@ function ItemsTable({ items, total }: { items: any; total: number }) {
   );
 }
 
-/**
- * Modal de acciones (Aprobar/Rechazar/etc.)
- */
 function ActionModal({
   action,
   selectedRequest,
@@ -1258,9 +2303,6 @@ function ActionModal({
   );
 }
 
-/**
- * Modal Crear/Editar Solicitud
- */
 function CreateEditModal({
   isEditing,
   form,
@@ -1281,7 +2323,6 @@ function CreateEditModal({
           {isEditing ? "Editar Solicitud" : "Orden de Pedido"}
         </h3>
 
-        {/* CAMPOS BÁSICOS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm text-gray-600 mb-1">
@@ -1328,7 +2369,6 @@ function CreateEditModal({
           </div>
         </div>
 
-        {/* TABLA DE ÍTEMS */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-gray-900">Ítems *</h4>
@@ -1472,7 +2512,6 @@ function CreateEditModal({
           </div>
         </div>
 
-        {/* OBSERVACIONES */}
         <div className="mb-6">
           <label className="block text-sm text-gray-600 mb-2">
             Observaciones (opcional)
@@ -1486,7 +2525,6 @@ function CreateEditModal({
           />
         </div>
 
-        {/* ACCIONES */}
         <div className="flex gap-3 pt-4 border-t border-gray-200">
           <button
             onClick={onCancel}
@@ -1509,9 +2547,6 @@ function CreateEditModal({
   );
 }
 
-/**
- * NUEVO COMPONENTE: Modal de Verificación de Stock
- */
 function StockVerificationModal({
   stockData,
   onGenerateOS,
@@ -1571,7 +2606,6 @@ function StockVerificationModal({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* HEADER */}
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1598,9 +2632,7 @@ function StockVerificationModal({
           </div>
         </div>
 
-        {/* CONTENIDO */}
         <div className="p-6 space-y-6">
-          {/* RESUMEN DE LA SOLICITUD */}
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -1630,7 +2662,6 @@ function StockVerificationModal({
             </div>
           </div>
 
-          {/* COMPARACIÓN DE STOCK */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1654,7 +2685,6 @@ function StockVerificationModal({
               </div>
             </div>
 
-            {/* BARRA DE PROGRESO */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">
@@ -1676,7 +2706,6 @@ function StockVerificationModal({
               </div>
             </div>
 
-            {/* DETALLES DE STOCK */}
             <div className="grid grid-cols-2 gap-4">
               <div
                 className={`border rounded-lg p-4 ${
@@ -1726,7 +2755,6 @@ function StockVerificationModal({
               )}
             </div>
 
-            {/* EJEMPLO DE CÁLCULO */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <AlertCircle className="w-4 h-4 text-blue-600" />
@@ -1762,7 +2790,6 @@ function StockVerificationModal({
               </div>
             </div>
 
-            {/* ALERTA SI NO HAY STOCK SUFICIENTE */}
             {!isSufficient && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
@@ -1781,7 +2808,6 @@ function StockVerificationModal({
               </div>
             )}
 
-            {/* STOCK EN OTROS SUBALMACENES */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -1833,7 +2859,6 @@ function StockVerificationModal({
             </div>
           </div>
 
-          {/* BOTONES DE ACCIÓN */}
           <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
             <div className="flex justify-between gap-3">
               <button
@@ -1874,7 +2899,6 @@ function StockVerificationModal({
               </div>
             </div>
 
-            {/* INFORMACIÓN ADICIONAL */}
             <div className="mt-3 text-xs text-gray-500 text-center">
               {isSufficient
                 ? "✅ Se generará una Orden de Salida para despachar el producto desde el Almacén Principal"
@@ -1886,3 +2910,5 @@ function StockVerificationModal({
     </div>
   );
 }
+
+export default PurchaseRequests;

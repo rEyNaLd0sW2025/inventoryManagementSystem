@@ -12,7 +12,12 @@ import {
   notifications as initialNotifications,
   users,
   purchaseRequests as initialPurchaseRequests,
+  products as initialProducts,
+  movements as initialMovements,
+  orders as initialOrders,
 } from "./data/mockData";
+import Orders from "./components/Orders";
+import { Order } from "./types";
 import { User, Notification } from "./types";
 
 type Page =
@@ -20,6 +25,7 @@ type Page =
   | "inventory"
   | "movements"
   | "transfers"
+  | "orders"
   | "purchases"
   | "notifications"
   | "history"
@@ -40,6 +46,9 @@ export default function App() {
   );
   const [notifications, setNotifications] =
     useState<Notification[]>(initialNotifications);
+  const [products, setProducts] = useState(initialProducts);
+  const [movements, setMovements] = useState(initialMovements);
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
 
   const unreadNotifications = notifications.filter((n) => !n.read).length;
 
@@ -56,11 +65,6 @@ export default function App() {
       setCurrentPage("dashboard");
     }
   };
-
-  // 👇 agrega estos
-  const [products, setProducts] = useState<any[]>([]);
-  const [movements, setMovements] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
 
   const renderPage = () => {
     switch (currentPage) {
@@ -80,6 +84,21 @@ export default function App() {
           <Movements
             onNavigate={handleNavigate}
             currentUser={currentUser}
+            movements={movements}
+            setMovements={setMovements}
+            setNotifications={setNotifications}
+          />
+        );
+      case "orders":
+        return (
+          <Orders
+            currentUser={currentUser}
+            products={products}
+            setProducts={setProducts}
+            movements={movements}
+            setMovements={setMovements}
+            orders={orders}
+            setOrders={setOrders}
             setNotifications={setNotifications}
           />
         );
@@ -95,12 +114,6 @@ export default function App() {
             requests={purchaseRequests}
             setRequests={setPurchaseRequests}
             setNotifications={setNotifications}
-            products={products}
-            setProducts={setProducts}
-            movements={movements}
-            setMovements={setMovements}
-            orders={orders}
-            setOrders={setOrders}
           />
         );
       case "notifications":

@@ -196,3 +196,89 @@ export interface Alert {
   date: string;
   resolved: boolean;
 }
+
+// ===== ÓRDENES: OP / OS / OI / OD / OR =====
+
+export type OrderType = "OP" | "OS" | "OI" | "OD" | "OR";
+
+export type OrderStatus =
+  | "borrador"
+  | "pendiente"
+  | "en_proceso"
+  | "aprobado"
+  | "observado"
+  | "rechazado"
+  | "cerrado";
+
+export type OrderItemStatus =
+  | "pendiente"
+  | "disponible"
+  | "compra"
+  | "rechazado"
+  | "recibido";
+
+export type Priority = "baja" | "media" | "alta" | "urgente";
+
+export interface OrderItem {
+  itemNumber: number;
+  id?: string;
+  productId: string;
+  productCode: string;
+  productName: string;
+  description?: string;
+  requestedQuantity: number;
+  approvedQuantity: number;
+  receivedQuantity: number;
+  unit: string;
+  unitPrice?: number;
+  totalPrice?: number;
+  status: OrderItemStatus;
+  category: string;
+  observations?: string;
+}
+
+export interface Order {
+  id: string;
+  opNumber: string;
+  opaNumber?: string;
+  type: OrderType;
+  status: OrderStatus;
+  items: OrderItem[];
+  priority: Priority;
+  glosa?: string;
+  concept?: string;
+  originWarehouseId: string;
+  originWarehouseName: string;
+  destinationWarehouseId?: string;
+  destinationWarehouseName?: string;
+  requester: string;
+  requesterId: string;
+  requestDate: string;
+  approvalDate?: string;
+  approvedBy?: string;
+  closeDate?: string;
+  observations?: string;
+  relatedOrderIds?: string[];
+  reviewed?: boolean;
+  reviewedBy?: string;
+  reviewDate?: string;
+  reviewNotes?: string;
+}
+
+export interface CartItem {
+  productId: string;
+  productCode: string;
+  productName: string;
+  quantity: number;
+  category: string;
+  unit: string;
+  APStock: number;
+  warehouseId: string;
+}
+
+export interface Cart {
+  items: CartItem[];
+  priority: Priority;
+  glosa: string;
+  originWarehouseId: string;
+}
