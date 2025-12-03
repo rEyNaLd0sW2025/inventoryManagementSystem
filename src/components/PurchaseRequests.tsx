@@ -1823,8 +1823,8 @@ function ProductCard({ product, onAddToCart, onViewDetails, cartItems }: any) {
 
   const getStockLabel = (stock: number) => {
     if (stock >= 100) return "Disponible";
-    if (stock >= 50) return "Limitado";
-    if (stock > 0) return "Bajo stock";
+    if (stock >= 50) return "Bajo stock";
+    if (stock > 0) return "Agotado";
     return "Agotado";
   };
 
