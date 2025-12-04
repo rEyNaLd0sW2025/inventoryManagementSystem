@@ -1242,22 +1242,22 @@ export function PurchaseRequests({
                 textColor="text-green-600"
                 iconColor="text-green-600"
               />
-              <StatCard
+              {/* <StatCard
                 label="Observadas"
                 value={stats.totalObservadas}
                 icon={Edit}
                 bgColor="bg-orange-100"
                 textColor="text-orange-600"
                 iconColor="text-orange-600"
-              />
-              <StatCard
+              /> */}
+              {/* <StatCard
                 label="En Espera"
                 value={stats.totalEnEspera}
                 icon={Pause}
                 bgColor="bg-gray-100"
                 textColor="text-gray-600"
                 iconColor="text-gray-600"
-              />
+              /> */}
             </div>
 
             <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -1283,8 +1283,8 @@ export function PurchaseRequests({
                   <option value="all">Todos los estados</option>
                   <option value="pendiente">Pendientes</option>
                   <option value="urgente">Urgentes</option>
-                  <option value="observada">Observadas</option>
-                  <option value="en_espera">En Espera</option>
+                  {/* <option value="observada">Observadas</option> */}
+                  {/* <option value="en_espera">En Espera</option> */}
                   <option value="aprobado">Aprobadas</option>
                   <option value="rechazado">Rechazadas</option>
                   <option value="en_proceso_compra">En Proceso</option>
@@ -1692,7 +1692,7 @@ export function PurchaseRequests({
                       className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
                     >
                       <TruckIcon className="w-5 h-5" />
-                      Enviar Solicitud al Almacén
+                      Enviar Orden de Pedido al Almacén
                     </button>
                     <div className="flex gap-3">
                       <button
